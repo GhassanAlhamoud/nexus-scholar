@@ -70,6 +70,21 @@ export default function Graph() {
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide().radius(40));
 
+    // Create arrow marker for directed edges
+    svg.append("defs").append("marker")
+      .attr("id", "arrowhead")
+      .attr("viewBox", "-0 -5 10 10")
+      .attr("refX", 25)
+      .attr("refY", 0)
+      .attr("orient", "auto")
+      .attr("markerWidth", 6)
+      .attr("markerHeight", 6)
+      .attr("xoverflow", "visible")
+      .append("svg:path")
+      .attr("d", "M 0,-5 L 10 ,0 L 0,5")
+      .attr("fill", "#6b7280")
+      .style("stroke", "none");
+
     // Create links
     const link = g.append("g")
       .selectAll("line")
@@ -77,7 +92,20 @@ export default function Graph() {
       .join("line")
       .attr("stroke", "#6b7280")
       .attr("stroke-width", 2)
-      .attr("stroke-opacity", 0.6);
+      .attr("stroke-opacity", 0.6)
+      .attr("marker-end", "url(#arrowhead)");
+
+    // Create link labels
+    const linkLabel = g.append("g")
+      .selectAll("text")
+      .data(links)
+      .join("text")
+      .attr("class", "link-label")
+      .attr("text-anchor", "middle")
+      .attr("fill", "#9ca3af")
+      .attr("font-size", "10px")
+      .attr("pointer-events", "none")
+      .text(d => d.relationshipType ? d.relationshipType.replace(/_/g, " ") : "");
 
     // Create nodes
     const node = g.append("g")
@@ -132,6 +160,10 @@ export default function Graph() {
         .attr("y1", d => (d.source as GraphNode).y!)
         .attr("x2", d => (d.target as GraphNode).x!)
         .attr("y2", d => (d.target as GraphNode).y!);
+
+      linkLabel
+        .attr("x", d => ((d.source as GraphNode).x! + (d.target as GraphNode).x!) / 2)
+        .attr("y", d => ((d.source as GraphNode).y! + (d.target as GraphNode).y!) / 2 - 5);
 
       node.attr("transform", d => `translate(${d.x},${d.y})`);
     });

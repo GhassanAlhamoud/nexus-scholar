@@ -60,3 +60,26 @@
 - [ ] Cite-as-you-write functionality
 - [ ] Multi-format export (Word, PDF, Markdown)
 - [ ] Graph visualization export
+
+
+## Phase 1.5: TVAS Framework Enhancements
+
+### French Revolution Example Data
+- [x] Create seed data script with French Revolution TV-Objects
+- [x] Add sample actors (Louis XVI, Robespierre, Third Estate)
+- [x] Add sample events (Storming of Bastille, Tennis Court Oath)
+- [x] Add sample conditions (National Debt, Social Inequality)
+- [x] Add sample ideologies (Enlightenment Principles)
+- [x] Create links between related notes
+
+### TV-Object Type System
+- [x] Add TV-Object type selector dropdown in note editor
+- [x] Create structured attribute forms for each TV-Object type
+- [x] Display TV-Object attributes in note view
+- [x] Update graph to show TV-Object type badges
+
+### Relationship Type Editor
+- [x] Add manual link creation UI with relationship type selector
+- [x] Display relationship types in link list
+- [x] Show relationship type labels on graph edges
+- [x] Add predefined relationship types (IS_SUPPORTED_BY, CRITIQUES, etc.)

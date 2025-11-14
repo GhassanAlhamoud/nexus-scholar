@@ -3,13 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
-import { Loader2, Plus, Trash2, FileText, Network } from "lucide-react";
+import { Loader2, Plus, Trash2, FileText, Network, Tag } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { TV_OBJECT_TYPES, TV_OBJECT_SCHEMAS, type TVObjectType } from "@shared/tvobjects";
+import { LinkEditor } from "@/components/LinkEditor";
 
 export default function Notes() {
   const { user, loading: authLoading } = useAuth();
@@ -18,6 +22,8 @@ export default function Notes() {
   const [content, setContent] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [tvObjectType, setTvObjectType] = useState<string>("");
+  const [tvObjectAttributes, setTvObjectAttributes] = useState<Record<string, any>>({});
 
   const { data: notes, isLoading: notesLoading } = trpc.notes.list.useQuery(undefined, {
     enabled: !!user,
@@ -60,6 +66,8 @@ export default function Notes() {
       setSelectedNoteId(noteId);
       setTitle(note.title);
       setContent(note.content);
+      setTvObjectType(note.tvObjectType || "");
+      setTvObjectAttributes(note.tvObjectAttributes ? JSON.parse(note.tvObjectAttributes) : {});
       setIsCreating(false);
       setShowPreview(false);
     }
@@ -70,16 +78,27 @@ export default function Notes() {
     setSelectedNoteId(null);
     setTitle("");
     setContent("");
+    setTvObjectType("");
+    setTvObjectAttributes({});
     setShowPreview(false);
   };
 
   const handleSave = () => {
     if (!title.trim()) return;
 
+    const payload = {
+      title,
+      content,
+      tvObjectType: tvObjectType || undefined,
+      tvObjectAttributes: tvObjectType && Object.keys(tvObjectAttributes).length > 0
+        ? JSON.stringify(tvObjectAttributes)
+        : undefined,
+    };
+
     if (isCreating) {
-      createMutation.mutate({ title, content });
+      createMutation.mutate(payload);
     } else if (selectedNoteId) {
-      updateMutation.mutate({ id: selectedNoteId, title, content });
+      updateMutation.mutate({ id: selectedNoteId, ...payload });
     }
   };
 
@@ -145,8 +164,8 @@ export default function Notes() {
       </header>
 
       <div className="flex h-[calc(100vh-73px)]">
-        {/* Sidebar - Note List */}
-        <div className="w-80 border-r border-border bg-card overflow-y-auto">
+        {/* Left Sidebar - Note List */}
+        <div className="w-64 border-r border-border bg-card overflow-y-auto flex-shrink-0">
           <div className="p-4 border-b border-border">
             <Button onClick={handleNewNote} className="w-full" size="sm">
               <Plus className="w-4 h-4 mr-2" />
@@ -186,45 +205,108 @@ export default function Notes() {
         </div>
 
         {/* Main Editor Area */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col min-w-0">
           {(selectedNoteId || isCreating) ? (
             <>
-              <div className="border-b border-border bg-card p-4 flex items-center justify-between">
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Note title..."
-                  className="text-xl font-semibold border-none bg-transparent focus-visible:ring-0 px-0"
-                />
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowPreview(!showPreview)}
-                  >
-                    {showPreview ? "Edit" : "Preview"}
-                  </Button>
-                  {selectedNoteId && (
+              <div className="border-b border-border bg-card p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Note title..."
+                    className="text-xl font-semibold border-none bg-transparent focus-visible:ring-0 px-0"
+                  />
+                  <div className="flex items-center gap-2">
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      onClick={handleDelete}
-                      disabled={deleteMutation.isPending}
+                      onClick={() => setShowPreview(!showPreview)}
                     >
-                      <Trash2 className="w-4 h-4" />
+                      {showPreview ? "Edit" : "Preview"}
                     </Button>
-                  )}
-                  <Button
-                    onClick={handleSave}
-                    size="sm"
-                    disabled={!title.trim() || createMutation.isPending || updateMutation.isPending}
-                  >
-                    {(createMutation.isPending || updateMutation.isPending) && (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {selectedNoteId && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleDelete}
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     )}
-                    Save
-                  </Button>
+                    <Button
+                      onClick={handleSave}
+                      size="sm"
+                      disabled={!title.trim() || createMutation.isPending || updateMutation.isPending}
+                    >
+                      {(createMutation.isPending || updateMutation.isPending) && (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      )}
+                      Save
+                    </Button>
+                  </div>
                 </div>
+                
+                {/* TV-Object Type Selector */}
+                <div className="flex items-center gap-4 px-4 pb-4">
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-muted-foreground" />
+                    <Label className="text-sm">TV-Object Type:</Label>
+                  </div>
+                  <Select value={tvObjectType} onValueChange={(value) => {
+                    setTvObjectType(value);
+                    setTvObjectAttributes({});
+                  }}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="None (Regular Note)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">None (Regular Note)</SelectItem>
+                      {TV_OBJECT_TYPES.map(type => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {/* TV-Object Attributes Form */}
+                {tvObjectType && TV_OBJECT_SCHEMAS[tvObjectType as TVObjectType] && (
+                  <div className="border-t border-border bg-card/50 p-4">
+                    <h3 className="text-sm font-semibold mb-3">TV-Object Attributes</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {TV_OBJECT_SCHEMAS[tvObjectType as TVObjectType].map(attr => (
+                        <div key={attr.name} className="space-y-1">
+                          <Label className="text-xs">
+                            {attr.label}
+                            {attr.required && <span className="text-destructive ml-1">*</span>}
+                          </Label>
+                          {attr.type === "textarea" ? (
+                            <Textarea
+                              value={tvObjectAttributes[attr.name] || ""}
+                              onChange={(e) => setTvObjectAttributes(prev => ({
+                                ...prev,
+                                [attr.name]: e.target.value
+                              }))}
+                              placeholder={attr.placeholder}
+                              className="text-sm min-h-20"
+                            />
+                          ) : (
+                            <Input
+                              type={attr.type}
+                              value={tvObjectAttributes[attr.name] || ""}
+                              onChange={(e) => setTvObjectAttributes(prev => ({
+                                ...prev,
+                                [attr.name]: attr.type === "number" ? Number(e.target.value) : e.target.value
+                              }))}
+                              placeholder={attr.placeholder}
+                              className="text-sm"
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="flex-1 overflow-y-auto p-6">
                 {showPreview ? (
@@ -252,6 +334,15 @@ export default function Notes() {
             </div>
           )}
         </div>
+
+        {/* Right Sidebar - Link Editor */}
+        {(selectedNoteId || isCreating) && notes && (
+          <div className="w-80 border-l border-border bg-card overflow-y-auto flex-shrink-0 p-4">
+            {selectedNoteId && (
+              <LinkEditor currentNoteId={selectedNoteId} notes={notes} />
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
