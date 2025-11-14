@@ -83,3 +83,31 @@
 - [x] Display relationship types in link list
 - [x] Show relationship type labels on graph edges
 - [x] Add predefined relationship types (IS_SUPPORTED_BY, CRITIQUES, etc.)
+
+
+## Bug Fixes
+- [x] Fix note creation errors in the UI
+- [x] Debug and resolve any console errors
+
+## Phase 2: Data Import & Graph Analytics
+
+### CSV/JSON Import
+- [ ] Create import page with file upload
+- [ ] Build column mapping interface for CSV
+- [ ] Add JSON structure validation
+- [ ] Map imported data to TV-Object types
+- [ ] Bulk create notes from imported data
+- [ ] Create links based on reference columns
+
+### Graph Algorithms
+- [ ] Implement centrality analysis (degree, betweenness, closeness)
+- [ ] Add community detection algorithm
+- [ ] Implement shortest path finding between notes
+- [ ] Add graph statistics panel (node count, edge count, density)
+- [ ] Create algorithm results visualization
+- [ ] Export algorithm results to CSV
+
+### GitHub Integration
+- [ ] Push code to GitHub repository
+- [ ] Add comprehensive README.md
+- [ ] Document installation and setup

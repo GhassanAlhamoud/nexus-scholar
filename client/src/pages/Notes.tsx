@@ -22,7 +22,7 @@ export default function Notes() {
   const [content, setContent] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [tvObjectType, setTvObjectType] = useState<string>("");
+  const [tvObjectType, setTvObjectType] = useState<string | undefined>(undefined);
   const [tvObjectAttributes, setTvObjectAttributes] = useState<Record<string, any>>({});
 
   const { data: notes, isLoading: notesLoading } = trpc.notes.list.useQuery(undefined, {
@@ -66,7 +66,7 @@ export default function Notes() {
       setSelectedNoteId(noteId);
       setTitle(note.title);
       setContent(note.content);
-      setTvObjectType(note.tvObjectType || "");
+      setTvObjectType(note.tvObjectType || undefined);
       setTvObjectAttributes(note.tvObjectAttributes ? JSON.parse(note.tvObjectAttributes) : {});
       setIsCreating(false);
       setShowPreview(false);
@@ -78,7 +78,7 @@ export default function Notes() {
     setSelectedNoteId(null);
     setTitle("");
     setContent("");
-    setTvObjectType("");
+    setTvObjectType(undefined);
     setTvObjectAttributes({});
     setShowPreview(false);
   };
@@ -89,7 +89,7 @@ export default function Notes() {
     const payload = {
       title,
       content,
-      tvObjectType: tvObjectType || undefined,
+      tvObjectType: tvObjectType,
       tvObjectAttributes: tvObjectType && Object.keys(tvObjectAttributes).length > 0
         ? JSON.stringify(tvObjectAttributes)
         : undefined,
@@ -253,15 +253,15 @@ export default function Notes() {
                     <Tag className="w-4 h-4 text-muted-foreground" />
                     <Label className="text-sm">TV-Object Type:</Label>
                   </div>
-                  <Select value={tvObjectType} onValueChange={(value) => {
-                    setTvObjectType(value);
+                  <Select value={tvObjectType || "none"} onValueChange={(value) => {
+                    setTvObjectType(value === "none" ? undefined : value);
                     setTvObjectAttributes({});
                   }}>
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="None (Regular Note)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None (Regular Note)</SelectItem>
+                      <SelectItem value="none">None (Regular Note)</SelectItem>
                       {TV_OBJECT_TYPES.map(type => (
                         <SelectItem key={type} value={type}>{type}</SelectItem>
                       ))}
