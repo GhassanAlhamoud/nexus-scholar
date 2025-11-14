@@ -1,11 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, notes, links, InsertNote, InsertLink, Note, Link } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -89,4 +88,128 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// ============ Notes Operations ============
+
+export async function createNote(note: InsertNote): Promise<Note> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(notes).values(note);
+  const insertedId = Number(result[0].insertId);
+  
+  const inserted = await db.select().from(notes).where(eq(notes.id, insertedId)).limit(1);
+  return inserted[0];
+}
+
+export async function getUserNotes(userId: number): Promise<Note[]> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.select().from(notes).where(eq(notes.userId, userId)).orderBy(notes.updatedAt);
+}
+
+export async function getNoteById(noteId: number, userId: number): Promise<Note | undefined> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.select().from(notes)
+    .where(and(eq(notes.id, noteId), eq(notes.userId, userId)))
+    .limit(1);
+  
+  return result[0];
+}
+
+export async function updateNote(noteId: number, userId: number, updates: Partial<InsertNote>): Promise<Note | undefined> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.update(notes)
+    .set(updates)
+    .where(and(eq(notes.id, noteId), eq(notes.userId, userId)));
+
+  return getNoteById(noteId, userId);
+}
+
+export async function deleteNote(noteId: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Delete associated links first
+  await db.delete(links).where(
+    and(
+      eq(links.userId, userId),
+      or(eq(links.sourceNoteId, noteId), eq(links.targetNoteId, noteId))
+    )
+  );
+
+  // Delete the note
+  await db.delete(notes).where(and(eq(notes.id, noteId), eq(notes.userId, userId)));
+}
+
+// ============ Links Operations ============
+
+export async function createLink(link: InsertLink): Promise<Link> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Check if link already exists
+  const existing = await db.select().from(links)
+    .where(
+      and(
+        eq(links.userId, link.userId),
+        eq(links.sourceNoteId, link.sourceNoteId),
+        eq(links.targetNoteId, link.targetNoteId)
+      )
+    )
+    .limit(1);
+
+  if (existing.length > 0) {
+    return existing[0];
+  }
+
+  const result = await db.insert(links).values(link);
+  const insertedId = Number(result[0].insertId);
+  
+  const inserted = await db.select().from(links).where(eq(links.id, insertedId)).limit(1);
+  return inserted[0];
+}
+
+export async function getUserLinks(userId: number): Promise<Link[]> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.select().from(links).where(eq(links.userId, userId));
+}
+
+export async function getLinksForNote(noteId: number, userId: number): Promise<Link[]> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  return db.select().from(links)
+    .where(
+      and(
+        eq(links.userId, userId),
+        or(eq(links.sourceNoteId, noteId), eq(links.targetNoteId, noteId))
+      )
+    );
+}
+
+export async function deleteLink(linkId: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(links).where(and(eq(links.id, linkId), eq(links.userId, userId)));
+}
+
+export async function deleteLinkBetweenNotes(sourceId: number, targetId: number, userId: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(links).where(
+    and(
+      eq(links.userId, userId),
+      eq(links.sourceNoteId, sourceId),
+      eq(links.targetNoteId, targetId)
+    )
+  );
+}
