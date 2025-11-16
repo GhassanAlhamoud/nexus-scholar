@@ -7,13 +7,15 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Notes from "./pages/Notes";
 import Graph from "./pages/Graph";
+import Import from "./pages/Import";
 
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Home} />
-      <Route path={"/notes"} component={Notes} />
-      <Route path={"/graph"} component={Graph} />
+      <Route path="/notes" component={Notes} />
+      <Route path="/graph" component={Graph} />
+      <Route path="/import" component={Import} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

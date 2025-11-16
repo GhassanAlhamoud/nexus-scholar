@@ -101,3 +101,29 @@
 - [ ] Create Docker Compose setup
 - [ ] MCP operations for all CRUD
 - [ ] Graph query operations via MCP
+
+
+## Phase 3: Data Import & Timeline Visualization 🚧
+
+### CSV/JSON Import
+- [x] Create Import page with file upload component
+- [x] Parse CSV files and display preview
+- [x] Parse JSON files and validate structure
+- [x] Build column mapping interface
+- [x] Map columns to TV-Object types and attributes
+- [ ] Handle relationship creation from reference columns
+- [x] Implement bulk note creation API
+- [x] Add progress indicator for import
+- [x] Show import summary with created notes count
+
+### Timeline Visualization
+- [ ] Create Timeline page component
+- [ ] Filter Event-type notes with dates
+- [ ] Build horizontal timeline with D3.js
+- [ ] Display events chronologically
+- [ ] Add zoom and pan for timeline navigation
+- [ ] Show event details on hover/click
+- [ ] Add temporal range filter
+- [ ] Connect timeline events to graph view
+- [ ] Support multiple timeline scales (year, month, day)
+- [ ] Add "jump to date" feature

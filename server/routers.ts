@@ -1,10 +1,10 @@
 import { COOKIE_NAME } from "@shared/const";
-import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import * as db from "./db";
+import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
+import { createNote, deleteNote, getUserNotes, getNoteById, updateNote, getUserLinks, createLink, deleteLink, getLinksForNote } from "./db";
 
 /**
  * Extract [[wiki-style]] links from markdown content
@@ -25,7 +25,7 @@ function extractWikiLinks(content: string): string[] {
  * Find note by title for a user
  */
 async function findNoteByTitle(title: string, userId: number) {
-  const allNotes = await db.getUserNotes(userId);
+  const allNotes = await getUserNotes(userId);
   return allNotes.find(note => note.title.toLowerCase() === title.toLowerCase());
 }
 
@@ -44,13 +44,13 @@ export const appRouter = router({
 
   notes: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      return db.getUserNotes(ctx.user.id);
+      return getUserNotes(ctx.user.id);
     }),
 
     get: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ ctx, input }) => {
-        const note = await db.getNoteById(input.id, ctx.user.id);
+        const note = await getNoteById(input.id, ctx.user.id);
         if (!note) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Note not found" });
         }
@@ -65,7 +65,7 @@ export const appRouter = router({
         tvObjectAttributes: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const note = await db.createNote({
+        const note = await createNote({
           userId: ctx.user.id,
           title: input.title,
           content: input.content,
@@ -78,7 +78,7 @@ export const appRouter = router({
         for (const linkTitle of wikiLinks) {
           const targetNote = await findNoteByTitle(linkTitle, ctx.user.id);
           if (targetNote) {
-            await db.createLink({
+            await createLink({
               userId: ctx.user.id,
               sourceNoteId: note.id,
               targetNoteId: targetNote.id,
@@ -105,10 +105,10 @@ export const appRouter = router({
         // If content is being updated, reprocess wiki links
         if (updates.content !== undefined) {
           // Delete existing links from this note
-          const existingLinks = await db.getLinksForNote(id, ctx.user.id);
+          const existingLinks = await getLinksForNote(id, ctx.user.id);
           for (const link of existingLinks) {
             if (link.sourceNoteId === id) {
-              await db.deleteLink(link.id, ctx.user.id);
+              await deleteLink(link.id, ctx.user.id);
             }
           }
 
@@ -117,7 +117,7 @@ export const appRouter = router({
           for (const linkTitle of wikiLinks) {
             const targetNote = await findNoteByTitle(linkTitle, ctx.user.id);
             if (targetNote && targetNote.id !== id) {
-              await db.createLink({
+              await createLink({
                 userId: ctx.user.id,
                 sourceNoteId: id,
                 targetNoteId: targetNote.id,
@@ -128,7 +128,7 @@ export const appRouter = router({
           }
         }
 
-        const note = await db.updateNote(id, ctx.user.id, updates);
+        const note = await updateNote(id, ctx.user.id, updates);
         if (!note) {
           throw new TRPCError({ code: "NOT_FOUND", message: "Note not found" });
         }
@@ -137,21 +137,45 @@ export const appRouter = router({
 
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(async ({ ctx, input }) => {
-        await db.deleteNote(input.id, ctx.user.id);
+      .mutation(async ({ input, ctx }) => {
+        await deleteNote(input.id, ctx.user.id);
         return { success: true };
+      }),
+
+    bulkCreate: protectedProcedure
+      .input(z.object({
+        notes: z.array(z.object({
+          title: z.string(),
+          content: z.string(),
+          tvObjectType: z.string().optional(),
+          tvObjectAttributes: z.string().optional(),
+        }))
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const created = [];
+        for (const note of input.notes) {
+          const result = await createNote({
+            title: note.title,
+            content: note.content,
+            tvObjectType: note.tvObjectType || null,
+            tvObjectAttributes: note.tvObjectAttributes || null,
+            userId: ctx.user.id,
+          });
+          created.push(result);
+        }
+        return { count: created.length, notes: created };
       }),
   }),
 
   links: router({
     list: protectedProcedure.query(async ({ ctx }) => {
-      return db.getUserLinks(ctx.user.id);
+      return getUserLinks(ctx.user.id);
     }),
 
     forNote: protectedProcedure
       .input(z.object({ noteId: z.number() }))
       .query(async ({ ctx, input }) => {
-        return db.getLinksForNote(input.noteId, ctx.user.id);
+        return getLinksForNote(input.noteId, ctx.user.id);
       }),
 
     create: protectedProcedure
@@ -162,7 +186,7 @@ export const appRouter = router({
         evidence: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        return db.createLink({
+        return createLink({
           userId: ctx.user.id,
           sourceNoteId: input.sourceNoteId,
           targetNoteId: input.targetNoteId,
@@ -174,15 +198,15 @@ export const appRouter = router({
     delete: protectedProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        await db.deleteLink(input.id, ctx.user.id);
+        await deleteLink(input.id, ctx.user.id);
         return { success: true };
       }),
   }),
 
   graph: router({
     data: protectedProcedure.query(async ({ ctx }) => {
-      const notes = await db.getUserNotes(ctx.user.id);
-      const links = await db.getUserLinks(ctx.user.id);
+      const notes = await getUserNotes(ctx.user.id);
+      const links = await getUserLinks(ctx.user.id);
 
       return {
         nodes: notes.map(note => ({
